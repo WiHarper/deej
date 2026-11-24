@@ -124,3 +124,17 @@ func SignificantlyDifferent(old float32, new float32, noiseReductionLevel string
 func almostEquals(a float32, b float32) bool {
 	return math.Abs(float64(a-b)) < 0.000001
 }
+
+// ApplyVolumeCurve shapes a linear slider position (0.0-1.0) into a volume scalar using v^exponent.
+// 1.0 leaves it linear; higher values give finer control near the top of the slider.
+// 0.0 and 1.0 always map to themselves
+func ApplyVolumeCurve(v float32, exponent float64) float32 {
+	if exponent <= 0 || exponent == 1.0 || v <= 0 {
+		return v
+	}
+	if v >= 1 {
+		return 1
+	}
+
+	return float32(math.Pow(float64(v), exponent))
+}

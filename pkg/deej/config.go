@@ -3,10 +3,12 @@ package deej
 import (
 	"fmt"
 	"path"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/fsnotify/fsnotify"
+	"github.com/spf13/cast"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 
@@ -26,6 +28,12 @@ type CanonicalConfig struct {
 	InvertSliders bool
 
 	NoiseReductionLevel string
+
+	// VolumeCurve is the exponent applied to slider position (1.0 = linear)
+	VolumeCurve float64
+
+	// ButtonMapping maps a button index to a key code
+	ButtonMapping map[int]int
 
 	logger             *zap.SugaredLogger
 	notifier           Notifier
@@ -53,6 +61,8 @@ const (
 	configKeyCOMPort             = "com_port"
 	configKeyBaudRate            = "baud_rate"
 	configKeyNoiseReductionLevel = "noise_reduction"
+	configKeyVolumeCurve         = "volume_curve"
+	configKeyButtonMapping       = "button_mapping"
 
 	defaultCOMPort  = "COM4"
 	defaultBaudRate = 9600
@@ -89,6 +99,7 @@ func NewConfig(logger *zap.SugaredLogger, notifier Notifier) (*CanonicalConfig, 
 	userConfig.SetDefault(configKeyInvertSliders, false)
 	userConfig.SetDefault(configKeyCOMPort, defaultCOMPort)
 	userConfig.SetDefault(configKeyBaudRate, defaultBaudRate)
+	userConfig.SetDefault(configKeyVolumeCurve, 1.0)
 
 	internalConfig := viper.New()
 	internalConfig.SetConfigName(internalConfigName)
@@ -146,7 +157,9 @@ func (cc *CanonicalConfig) Load() error {
 	cc.logger.Infow("Config values",
 		"sliderMapping", cc.SliderMapping,
 		"connectionInfo", cc.ConnectionInfo,
-		"invertSliders", cc.InvertSliders)
+		"invertSliders", cc.InvertSliders,
+		"volumeCurve", cc.VolumeCurve,
+		"buttons", len(cc.ButtonMapping))
 
 	return nil
 }
@@ -238,6 +251,23 @@ func (cc *CanonicalConfig) populateFromVipers() error {
 
 	cc.InvertSliders = cc.userConfig.GetBool(configKeyInvertSliders)
 	cc.NoiseReductionLevel = cc.userConfig.GetString(configKeyNoiseReductionLevel)
+
+	cc.VolumeCurve = cc.userConfig.GetFloat64(configKeyVolumeCurve)
+	if cc.VolumeCurve < 0.2 || cc.VolumeCurve > 6 {
+		cc.logger.Warnw("volume_curve out of range (0.2-6), using 1.0", "value", cc.VolumeCurve)
+		cc.VolumeCurve = 1.0
+	}
+
+	cc.ButtonMapping = map[int]int{}
+	for key, value := range cc.userConfig.GetStringMap(configKeyButtonMapping) {
+		buttonIdx, err := strconv.Atoi(key)
+		code, codeErr := cast.ToIntE(value)
+		if err != nil || codeErr != nil {
+			cc.logger.Warnw("Ignoring invalid button_mapping entry", "key", key, "value", value)
+			continue
+		}
+		cc.ButtonMapping[buttonIdx] = code
+	}
 
 	cc.logger.Debug("Populated config fields from vipers")
 
