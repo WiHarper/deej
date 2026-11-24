@@ -258,7 +258,7 @@ func (cc *CanonicalConfig) populateFromVipers() error {
 		cc.VolumeCurve = 1.0
 	}
 
-	cc.ButtonMapping = map[int]int{}
+	buttonMapping := map[int]int{}
 	for key, value := range cc.userConfig.GetStringMap(configKeyButtonMapping) {
 		buttonIdx, err := strconv.Atoi(key)
 		code, codeErr := cast.ToIntE(value)
@@ -266,8 +266,11 @@ func (cc *CanonicalConfig) populateFromVipers() error {
 			cc.logger.Warnw("Ignoring invalid button_mapping entry", "key", key, "value", value)
 			continue
 		}
-		cc.ButtonMapping[buttonIdx] = code
+		buttonMapping[buttonIdx] = code
 	}
+
+	// swap in the finished map so readers never see it half-filled
+	cc.ButtonMapping = buttonMapping
 
 	cc.logger.Debug("Populated config fields from vipers")
 

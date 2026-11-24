@@ -14,7 +14,7 @@ func sendKeyPress(code int) error {
 	vk := uintptr(vkFromConfigCode(code))
 
 	procKeybdEvent.Call(vk, 0, 0, 0)
-	time.Sleep(10 * time.Millisecond)
+	time.Sleep(40 * time.Millisecond)
 	procKeybdEvent.Call(vk, 0, keyEventFKeyUp, 0)
 
 	return nil

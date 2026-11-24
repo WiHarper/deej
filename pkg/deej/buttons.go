@@ -18,6 +18,8 @@ func (b *buttonHandler) start() {
 	events := b.deej.serial.SubscribeToButtonEvents()
 
 	go func() {
+		defer b.deej.recoverFromPanic()
+
 		for event := range events {
 			code, mapped := b.deej.config.ButtonMapping[event.ButtonID]
 			if !mapped {

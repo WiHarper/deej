@@ -36,6 +36,8 @@ type SerialIO struct {
 	buttonStates    []bool
 	lastButtonPress []time.Time
 
+	pendingButtonCount int
+
 	sliderMoveConsumers []chan SliderMoveEvent
 	buttonConsumers     []chan ButtonEvent
 }
@@ -175,6 +177,8 @@ func (sio *SerialIO) setupOnConfigReload() {
 // connectionLoop opens the port, reads from it until it fails, then starts over.
 // it only exits when the stop channel is closed
 func (sio *SerialIO) connectionLoop(stop chan struct{}) {
+	defer sio.deej.recoverFromPanic()
+
 	waitingLogged := false
 
 	for {
@@ -351,8 +355,9 @@ func (sio *SerialIO) handleLine(logger *zap.SugaredLogger, line string) {
 		}
 	}
 
-	sio.handleSliders(logger, sliderFields)
+	// buttons first, so a slow slider consumer can't delay a press on this line
 	sio.handleButtons(logger, buttonStates)
+	sio.handleSliders(logger, sliderFields)
 }
 
 func (sio *SerialIO) handleSliders(logger *zap.SugaredLogger, sliderFields []string) {
@@ -427,6 +432,15 @@ func (sio *SerialIO) handleButtons(logger *zap.SugaredLogger, pressed []bool) {
 	// first line after connecting (or a change in button count) only learns the current state,
 	// so a button held down during a reconnect doesn't fire
 	if len(pressed) != len(sio.buttonStates) {
+
+		// once learned, a single odd-length line is most likely a corrupted one: ignore it,
+		// and only accept a new button count if the next line agrees
+		if len(sio.buttonStates) > 0 && sio.pendingButtonCount != len(pressed) {
+			sio.pendingButtonCount = len(pressed)
+			return
+		}
+
+		sio.pendingButtonCount = 0
 		logger.Infow("Detected buttons", "amount", len(pressed))
 		sio.buttonStates = pressed
 		sio.lastButtonPress = make([]time.Time, len(pressed))
