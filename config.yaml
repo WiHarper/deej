@@ -25,3 +25,16 @@ baud_rate: 9600
 # adjust the amount of signal noise reduction depending on your hardware quality
 # supported values are "low" (excellent hardware), "default" (regular hardware) or "high" (bad, noisy hardware)
 noise_reduction: default
+
+# response curve applied to the sliders. 1.0 = linear. higher values (e.g. 2.0) give finer control near the top
+volume_curve: 1.0
+
+# each button sends a key press when pressed. values are Windows virtual-key codes;
+# codes above 0xFFF are treated as (key + 0xFFF), e.g. F13 = 0x7C + 0xFFF = 4219
+# supported keys: https://github.com/micmonay/keybd_event/blob/master/keybd_windows.go
+button_mapping:
+  0: 4219 # F13
+  1: 4220 # F14
+  2: 4221 # F15
+  3: 4222 # F16
+  4: 4223 # F17
